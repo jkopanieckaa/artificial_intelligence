@@ -1,260 +1,302 @@
+import sac.State;
+import sac.StateFunction;
 import sac.game.GameSearchAlgorithm;
 import sac.game.GameState;
 import sac.game.GameStateImpl;
 import sac.game.MinMax;
+import sac.graph.AStar;
 
 import java.util.*;
-import java.util.Scanner;
-
 
 public class Main {
     public static void main(String[] args) {
-        Mlynek gra = new Mlynek();  // Initialize the game state
-        GameSearchAlgorithm alg = new MinMax(gra);  // Use the MinMax algorithm for AI decisions
-        Scanner scanner = new Scanner(System.in);
-
-        while (!gra.isWinTerminal() && !gra.isNonWinTerminal()) {
-            // Player's move
-            System.out.println("Twój ruch: ");
-            System.out.println(gra);
-            gra.generateChildren();  // Generate all possible player moves
-
-            // Read player's move
-            System.out.println("Which position do you choose? (row column): ");
-            int row = scanner.nextInt();
-            int col = scanner.nextInt();
-
-            // Validate and apply player's move
-            while (row < 0 || row >= gra.rows || col < 0 || col >= gra.columns || gra.state[row][col] != 0) {
-                System.out.println("Wrong position, try again: ");
-                row = scanner.nextInt();
-                col = scanner.nextInt();
-            }
-            gra.state[row][col] = gra.maximizingTurnNow ? gra.white : gra.black;
-            gra.count--;
-
-            // Check if the game ended after the player's move
-            if (gra.isWinTerminal() || gra.isNonWinTerminal()) {
-                break;
-            }
-
-            // Computer's move
-            System.out.println("Ruch komputera...");
-            gra.generateChildren();  // Generate states after the computer's move
-            alg.setInitial(gra);  // Set the current state in the MinMax algorithm
-            alg.execute();  // Run the MinMax algorithm
-            // Get the best move for AI
-            String ruch = alg.getFirstBestMove();  // Get the best move for AI
-
-// Ensure the move string is in the correct format before attempting to execute it
-            if (ruch == null || ruch.split(" ").length != 4) {
-                System.out.println("Invalid move format. Trying again...");
-                continue;  // Skip to the next loop iteration if the move is invalid
-            }
-
-// Execute the AI move
-            gra.executemove(ruch);  // Execute the computer's move
-            System.out.println("Komputer wybrał ruch: " + ruch);
-            // Execute the computer's move
+       //uzywamy algorytmu alphabeta
 
 
-            // Check if the game ended after the computer's move
-            if (gra.isWinTerminal() || gra.isNonWinTerminal()) {
-                break;
-            }
-        }
-
-        // End of the game
-        if (gra.isWinTerminal()) {
-            System.out.println("Wygrałeś!");
-        } else if (gra.isNonWinTerminal()) {
-            System.out.println("Gra zakończona remisem.");
-        }
     }
-
 }
 
 
 
+class Mlynek extends GameStateImpl {
+    byte[][] state;
+    int rows = 3;
+    int columns = 8;
+    byte white = 1;
+    byte black = 2;
+    int countwhite_to_place = 9;
+    int countblack_to_place = 9;//I faza
+    int whitecount = 0; // zlicznie pionkow
+    int blackcount = 0;
+    boolean maximizingTurnNow;
+    private byte player;
 
 
 
-    class Mlynek extends GameStateImpl {
-        byte[][] state;
-        int rows = 3;
-        int columns = 8;
-        byte white = 1;
-        byte black = 2;
-        int count = 18; //I faza
-        int whitecount = 9; // zlicznie pozostałych i usuwanie przy mlynkach
-        int blackcount = 9;
-        boolean maximizingTurnNow;
-        private byte player;
-        private Scanner scanner = new Scanner(System.in); // Instance variable
 
-
-        public Mlynek() {
-            state = new byte[rows][columns];
-            maximizingTurnNow = true; //białe zaczynaja? CZY KOCHANY TO TU  MA BYC????? CZY W KONSTRRUKTORZE BEDZIE DOBRZE? I CZY MA BYC TEZ W KOPIUJACYM?
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    state[i][j] = 0;
-                }
+    public Mlynek() {
+        state = new byte[rows][columns];
+        maximizingTurnNow = true; //białe zaczynaja? CZY KOCHANY TO TU  MA BYC????? CZY W KONSTRRUKTORZE BEDZIE DOBRZE? I CZY MA BYC TEZ W KOPIUJACYM?
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                state[i][j] = 0;
             }
         }
+    }
 
-        public Mlynek(Mlynek m) {
-            super();
-            this.state = new byte[rows][columns];
+    public Mlynek(Mlynek m) {
+        super();
+        this.state = new byte[rows][columns];
 
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    this.state[i][j] = m.state[i][j];
-                }
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                this.state[i][j] = m.state[i][j];
             }
         }
+    }
 
-        public String toString() { // co jest z tym
-            StringBuilder s = new StringBuilder();
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    s.append(state[i][j] == 0 ? "." : (state[i][j] == white ? "W" : "B"));
-                    if (j < columns - 1) s.append(" "); // Separator pól
-                }
-                s.append('\n');
+    public String toString() { // co jest z tym
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                s.append(state[i][j] == 0 ? "." : (state[i][j] == white ? "W" : "B"));
+                if (j < columns - 1) s.append(" "); // Separator pól
             }
-            return s.toString();
+            s.append('\n');
         }
+        return s.toString();
+    }
 
 
-        public int hashCode() {
-            return toString().hashCode();
-        }
+    public int hashCode() {
+        return toString().hashCode();
+    }
 
-        public boolean isMlynek(int square, int index) {
-            byte board = state[square][index];
-
-            if (board == 0) {
-                return false;
-            }
-
-            // Check horizontal mills
-            if (index % 2 == 0) {
-                int next = (index + 1) % columns;
-                int next2 = (index + 2) % columns;
-                int prev = (index - 1 + columns) % columns;
-                int prev2 = (index - 2 + columns) % columns;
-
-                if ((state[square][next] == board && state[square][next2] == board) ||
-                        (state[square][prev] == board && state[square][prev2] == board)) {
-                    return true;
-                }
-            }
-
-            // Check vertical mills
-            if (index % 2 == 1) {
-                int prevSquare = (square - 1 + rows) % rows;
-                int nextSquare = (square + 1) % rows;
-                int next = (index + 1) % columns;
-                int prev = (index - 1 + columns) % columns;
-
-                if ((state[prevSquare][index] == board && state[nextSquare][index] == board) ||
-                        (state[square][next] == board && state[square][prev] == board)) {
-                    return true;
-                }
-            }
-
+    public boolean isMlynek(int square, int index) {
+        //square - numer kwadratu i index to ideks w kwadracie
+        byte board = state[square][index];
+        if (board == 0) {
             return false;
         }
 
+        //parzyste
+        //prawo, prawo 2
+        //lewo, lewo 2
 
-        public List<GameState> MlynekSolution(boolean maximizingTurnNow) {
-            byte opponent;
-            boolean check;
-            List<int[]> removablepieces = new ArrayList<>();
-            List<int[]> mlynekpieces = new ArrayList<>();
+        if (index % 2 == 0) {
+            int next = (index + 1) % columns;
+            int next2 = (index + 2) % columns;
+            int prev = (index - 1 + columns) % columns;
+            int prev2 = (index - 2 + columns) % columns;
 
-            if (maximizingTurnNow) {
-                opponent = black;
-            } else {
-                opponent = white;
+
+            if ((state[square][next] == board && state[square][next2] == board) || (state[square][prev] == board && state[square][prev2] == board)) {
+                return true;
             }
+        }
 
-            // Loop through the board and check for mills or removable pieces
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    if (state[i][j] == opponent) {
-                        check = isMlynek(i, j); // Check if a mill is formed
-                        if (check) {
-                            mlynekpieces.add(new int[]{i, j});
-                        } else {
-                            removablepieces.add(new int[]{i, j}); // Add to removable if no mill is formed
-                        }
-                    }
-                }
+        //nieparzyste - sasiedzi
+        //prawo i lewo
+        //gora i dol
+
+        //poprzedmi kwadrat
+        //nastepny kwadrat
+
+//CZEMU TAK ZAPISANE
+        if (index % 2 == 1) {
+            int prevsquare = (square - 1 + rows) % rows;
+            int nextsquare = (square + 1) % rows;
+            int next = (index + 1) % columns;
+            int prev = (index - 1 + columns) % columns;
+
+
+            //miedzy kwadratami
+            if ((state[prevsquare][index] == board && state[nextsquare][index] == board) || (state[square][next] == board && state[square][prev] == board)) {
+                return true;
             }
+        }
+        return false;
+    }
 
-            List<int[]> availablePieces;
-            if (removablepieces.isEmpty()) {
-                System.out.println("U can delete one of these (mills):");
-                availablePieces = mlynekpieces; // If no removable pieces, use mill pieces
-            } else {
-                System.out.println("U can delete one of these (no mill):");
-                availablePieces = removablepieces; // If there are removable pieces, show those
-            }
 
-            // Output the available pieces for deletion
-            for (int i = 0; i < availablePieces.size(); i++) {
-                int[] piece = availablePieces.get(i);
-                System.out.println(i + ": [" + piece[0] + ", " + piece[1] + "]");
-            }
+    public List<Mlynek> MlynekSolution(boolean maximizingTurnNow) {
+        List<Mlynek> children = new ArrayList<>();
+        byte opponent;
+        boolean pieceRemoved = false;
 
-            // Ask player to choose which piece to delete
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Choose which one u want to delete (int):");
-            int choice = scanner.nextInt();
-
-            // Ensure the choice is valid
-            while (choice < 0 || choice >= availablePieces.size()) {
-                System.out.println("Wrong choice, try again: ");
-                choice = scanner.nextInt();
-            }
-
-            // Delete the selected piece
-            int[] selectedPiece = availablePieces.get(choice);
-            System.out.println("Deleting: [" + selectedPiece[0] + ", " + selectedPiece[1] + "]");
-            state[selectedPiece[0]][selectedPiece[1]] = 0;
-
-            // Update the count based on the player whose piece was deleted
-            if (maximizingTurnNow) {
-                blackcount--;
-            } else {
-                whitecount--;
-            }
-
-            isSolution(); // Check the solution after deleting a piece
-            return Arrays.asList(this);
+        if(maximizingTurnNow) {
+            player = white;
+            opponent = black;
+        }else{
+            player = black;
+            opponent = white;
         }
 
 
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                if (state[row][col] == opponent && !isMlynek(row, col)) {
+                    Mlynek child = new Mlynek(this);
+                    child.state[row][col] = 0;  //czemu usuwamy pionek przeciwnika???
+                    pieceRemoved = true;
 
-        public boolean isSolution() {
-            // jezeli jeden z gracz ma zero pionkow to koniec the end
-            // jezeli brak ruchow ma jeden z graczy to tez kaputo
-            int playerpiecescount;
-            boolean canjump = false;
-            List<int[]> stillcanmove = new ArrayList<>();
+                    // Aktualizacja liczby pionków przeciwnika
+                    if (maximizingTurnNow) {
+                        child.blackcount--;
+                    } else {
+                        child.whitecount--;
+                    }
+
+                    child.maximizingTurnNow = !maximizingTurnNow;
+                    children.add(child);
+                }
+            }
+        }
 
 
-            if (whitecount == 0 || blackcount == 0) {
-                System.out.println("The end, game over");
-                return true;
+        if (!pieceRemoved) {
+            for (int row = 0; row < rows; row++) {
+                for (int col = 0; col < columns; col++) {
+                    if (state[row][col] == opponent) {
+                        Mlynek child = new Mlynek(this); // Tworzenie kopii stanu
+                        child.state[row][col] = 0; // Usunięcie pionka
+
+                        // Aktualizacja liczby pionków przeciwnika
+                        if (maximizingTurnNow) {
+                            child.blackcount--;
+                        } else {
+                            child.whitecount--;
+                        }
+
+                        child.maximizingTurnNow = !maximizingTurnNow; // Zmiana tury
+                        children.add(child); // Dodanie nowego stanu do listy dzieci
+                    }
+                }
+            }
+        }
+
+        return children; // Zwrócenie wygenerowanych dzieci
+    }
+
+
+    public void placingpieces(int row, int col) { //zmien nazwe potem
+        Scanner scanner = new Scanner(System.in);
+        if(maximizingTurnNow){
+            player = white;
+        }else{
+            player = black;
+        }
+
+        if (state[row][col] != 0) {
+            System.out.println("Invalid move. Try again:");
+            System.out.println("Which position do you choose? (row column): ");
+            row = scanner.nextInt();
+            col = scanner.nextInt();
+
+        }
+
+        state[row][col] = player;
+
+        if (maximizingTurnNow) {
+            countwhite_to_place--;
+            whitecount++;
+        } else {
+            countblack_to_place--;
+            blackcount++;
+        }
+
+    }
+
+    public void movingpieces (int row, int col, int newrow, int newcol){
+        Scanner scanner = new Scanner(System.in);
+
+        if (maximizingTurnNow) {
+            player = white;
+        } else {
+            player = black;
+        }
+
+
+        while(state[newrow][newcol] != 0){
+            System.out.println("Invalid move - position taken:");
+            System.out.println("Which position do you choose? (row column): ");
+            newrow = scanner.nextInt();
+            newcol = scanner.nextInt();
+
+            if (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0 || Math.abs(col - newcol) != 1 || Math.abs(row - newrow) != 1) {
+                System.out.println("Invalid move - cannot move there:");
+            }
+        }
+
+        state[row][col] = 0;
+        state[newrow][newcol] = player;
+
+        System.out.println("Moved piece to: [" + newrow + ", " + newcol + "]");
+
+        }
+    }
+
+
+    public List<GameState> firstphase() {
+
+        //pierwsza faza zaczyna sie kiedy count ==18 a konczy kiedy count jest 0
+
+        Scanner scanner = new Scanner(System.in);
+        boolean canjump = false;
+
+        if(whitecount == 3 || blackcount == 3){
+            canjump = true;
+        }
+
+        while (count != 0) {
+
+            if (maximizingTurnNow) {
+                player = white;
+            } else {
+                player = black;
             }
 
-            //przejsc przez wszytskie pionki gracza
-            //sprawdzic czy mozna sie ruszyc w prawo lewo gora dol (jezeli wiecej niz 3)
-            //jezeli nie to przegral
+            System.out.println("Current state:");
+            System.out.println(this);
 
+
+            System.out.println("Which position do you choose? (row column): ");
+            int row = scanner.nextInt();
+            int col = scanner.nextInt();
+
+            if (row < 0 || row > rows || col < 0 || col > columns || state[row][col] != 0) {
+                System.out.println("Wrong position");
+                continue;
+            }
+
+            state[row][col] = player;
+            if (maximizingTurnNow) {
+                count--;
+            } else {
+                count--;
+            }
+
+            if (isMlynek(row, col)) {
+                System.out.println("Mlynek found");
+                MlynekSolution(maximizingTurnNow);
+            }
+
+            isSolution();
+            maximizingTurnNow = !maximizingTurnNow;
+
+        }
+        return Arrays.asList(this);
+    }
+
+    public List<GameState> secondandthirdphase() {
+        //mamy plansze wypelniona po fazie pierwszej
+        //na zmine gracze przesuwaja pionki o jedno pole
+        // po kazdym ruchu sprawdzamy czy powstal mlynek
+        boolean canjump = false;
+        int playerpiecescount;
+        Scanner scanner = new Scanner(System.in);
+
+        while(!isSolution()) {
             if (maximizingTurnNow) {
                 player = white;
                 playerpiecescount = whitecount;
@@ -263,118 +305,124 @@ public class Main {
                 playerpiecescount = blackcount;
             }
 
+
             if (playerpiecescount <= 3) {
                 canjump = true;
             }
 
-            //wsumie moge zrobic tak ze jak nie mozna wykonac secondandthirdphase to koniec
-            //ale to chyba
+            System.out.println("Current state:");
+            System.out.println(this);
 
+            System.out.println("Position to move:");
+            int row = scanner.nextInt();
+            int col = scanner.nextInt();
 
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < columns; j++) {
-                    if (state[i][j] == player && !canjump) {
-                        if (j + 1 < columns && state[i][j + 1] != 0 && j - 1 >= 0 && state[i][j - 1] != 0 && i + 1 < rows && state[i + 1][j] != 0 && i - 1 >= 0 && state[i - 1][j] != 0) {
-                            stillcanmove.add(new int[]{i, j});
-                        }
-                    }
-                }
+            while (row < 0 || row >= rows || col < 0 || col >= columns || state[row][col] != player) {
+                System.out.println("Wrong choice, try again");
+                row = scanner.nextInt();
+                col = scanner.nextInt();
             }
 
-            if (stillcanmove.isEmpty() && count == 0) {
-                System.out.println("The end, game over, kaput");
-                return true;
-            }
+            System.out.println("Position to change: ");
+            int newrow = scanner.nextInt();
+            int newcol = scanner.nextInt();
 
-            return false;
-        }
-
-        // @Override
-        public List<GameState> generateChildren() {
-            List<GameState> children = new ArrayList<>();
-
-            if (count > 0) {
-                // Phase 1: Adding pieces
-                for (int i = 0; i < rows; i++) {
-                    for (int j = 0; j < columns; j++) {
-                        if (state[i][j] == 0) {
-                            Mlynek child = new Mlynek(this);
-                            child.state[i][j] = maximizingTurnNow ? white : black;
-                            child.count--;
-                            child.maximizingTurnNow = !maximizingTurnNow;
-                            children.add(child);
-                        }
-                    }
+            if (canjump) {
+                while (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0) {
+                    System.out.println("Invalid move. Try again:");
+                    newrow = scanner.nextInt();
+                    newcol = scanner.nextInt();
                 }
             } else {
-                // Phase 2 and 3: Moving pieces
-                byte player = maximizingTurnNow ? white : black;
-                boolean canJump = (maximizingTurnNow && whitecount <= 3) || (!maximizingTurnNow && blackcount <= 3);
-
-                for (int i = 0; i < rows; i++) {
-                    for (int j = 0; j < columns; j++) {
-                        if (state[i][j] == player) {
-                            if (canJump) {
-                                // Jumping move
-                                for (int ni = 0; ni < rows; ni++) {
-                                    for (int nj = 0; nj < columns; nj++) {
-                                        if (state[ni][nj] == 0) {
-                                            Mlynek child = new Mlynek(this);
-                                            child.state[i][j] = 0;
-                                            child.state[ni][nj] = player;
-                                            child.maximizingTurnNow = !maximizingTurnNow;
-                                            children.add(child);
-                                        }
-                                    }
-                                }
-                            } else {
-                                // Normal move
-                                int[][] directions = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-                                for (int[] dir : directions) {
-                                    int ni = i + dir[0];
-                                    int nj = j + dir[1];
-                                    if (ni >= 0 && ni < rows && nj >= 0 && nj < columns && state[ni][nj] == 0) {
-                                        Mlynek child = new Mlynek(this);
-                                        child.state[i][j] = 0;
-                                        child.state[ni][nj] = player;
-                                        child.maximizingTurnNow = !maximizingTurnNow;
-                                        children.add(child);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                while (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0 ||
+                        Math.abs(col - newcol) != 1 || Math.abs(row - newrow) != 1) {
+                    System.out.println("Invalid move. Try again:");
+                    newrow = scanner.nextInt();
+                    newcol = scanner.nextInt();
                 }
             }
 
-            return children;
-        }
 
+            state[row][col] = 0;
+            state[newrow][newcol] = player;
 
-        public void executemove(String move) {
-            // Parse the move string to get the source and destination positions
-            String[] parts = move.split(" ");
+            System.out.println("Moved piece to: [" + newrow + ", " + newcol + "]");
 
-            // Check if it's a phase 1 move (placing a piece), or phase 2/3 (moving a piece)
-            if (parts.length == 2) { // Phase 1 (place piece)
-                int row = Integer.parseInt(parts[0]);
-                int col = Integer.parseInt(parts[1]);
-                byte player = maximizingTurnNow ? white : black;
-                state[row][col] = player;  // Place the piece
-            } else if (parts.length == 4) { // Phase 2/3 (move piece)
-                int srcRow = Integer.parseInt(parts[0]);
-                int srcCol = Integer.parseInt(parts[1]);
-                int destRow = Integer.parseInt(parts[2]);
-                int destCol = Integer.parseInt(parts[3]);
-
-                // Move the piece on the board
-                byte player = state[srcRow][srcCol];
-                state[srcRow][srcCol] = 0;
-                state[destRow][destCol] = player;
-            } else {
-                System.out.println("Invalid move format.");
+            if (isMlynek(newrow, newcol)) {
+                System.out.println("Mlynek created");
+                MlynekSolution(maximizingTurnNow);
             }
+
+            isSolution();
+            maximizingTurnNow = !maximizingTurnNow;
+
+            System.out.println("Current state:");
+            System.out.println(this);
         }
 
-
+        return Arrays.asList(this);
     }
+
+
+
+    public boolean isSolution() {
+        // jezeli jeden z gracz ma zero pionkow to koniec the end
+        // jezeli brak ruchow ma jeden z graczy to tez kaputo
+        int playerpiecescount;
+        boolean canjump = false;
+        List<int[]> stillcanmove = new ArrayList<>();
+
+
+        if (whitecount == 0 || blackcount == 0) {
+            System.out.println("The end, game over");
+            return true;
+        }
+
+        //przejsc przez wszytskie pionki gracza
+        //sprawdzic czy mozna sie ruszyc w prawo lewo gora dol (jezeli wiecej niz 3)
+        //jezeli nie to przegral
+
+        if (maximizingTurnNow) {
+            player = white;
+            playerpiecescount = whitecount;
+        } else {
+            player = black;
+            playerpiecescount = blackcount;
+        }
+
+        if (playerpiecescount <= 3) {
+            canjump = true;
+        }
+
+        //wsumie moge zrobic tak ze jak nie mozna wykonac secondandthirdphase to koniec
+        //ale to chyba
+
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                if (state[i][j] == player && !canjump) {
+                    if (j + 1 < columns && state[i][j + 1] != 0 && j - 1 >= 0 && state[i][j - 1] != 0 && i + 1 < rows && state[i + 1][j] != 0 && i - 1 >= 0 && state[i - 1][j] != 0) {
+                        stillcanmove.add(new int[]{i, j});
+                    }
+                }
+            }
+        }
+
+        if(stillcanmove.isEmpty() && count==0){
+            System.out.println("The end, game over, kaput");
+            return true;
+        }
+
+        return false;
+    }
+
+    // @Override
+    public List<GameState> generateChildren() {
+
+        if (count > 0) {
+            return firstphase();
+        } else {
+            return secondandthirdphase();
+        }
+    }
+}
