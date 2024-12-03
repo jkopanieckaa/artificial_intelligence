@@ -10,419 +10,569 @@ import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
-       //uzywamy algorytmu alphabeta
+        GameState state = new Mlynek();
+        int depth = 6;
+        expand(state, depth);
+    }
 
+    public static void expand(GameState s, int d) {
+        long[] v = new long[d];
+        expand(s, v, 0);
+        for (long val : v) {
+            System.out.println(val);
+        }
+    }
 
+    public static void expand(GameState s, long[] v, int d) {
+        if (d >= v.length)
+            return;
+        for (GameState t : s.generateChildren()) {
+            v[d]++;
+            expand(t, v, d + 1);
+        }
     }
 }
 
-
-
 class Mlynek extends GameStateImpl {
+    private static final byte empty = 0;
+    private static final byte white = 1;
+    private static final byte black = 2;
+
     byte[][] state;
-    int rows = 3;
-    int columns = 8;
-    byte white = 1;
-    byte black = 2;
-    int countwhite_to_place = 9;
-    int countblack_to_place = 9;//I faza
-    int whitecount = 0; // zlicznie pionkow
-    int blackcount = 0;
-    boolean maximizingTurnNow;
-    private byte player;
+    private final int rows = 3;
+    private final int columns = 8;
 
+    boolean maximazingturnnow;
+    int white_toplace = 9;
+    int black_toplace = 9;
 
-
+    int white_count = 0;
+    int black_count = 0;
 
     public Mlynek() {
-        state = new byte[rows][columns];
-        maximizingTurnNow = true; //białe zaczynaja? CZY KOCHANY TO TU  MA BYC????? CZY W KONSTRRUKTORZE BEDZIE DOBRZE? I CZY MA BYC TEZ W KOPIUJACYM?
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < columns; j++) {
-                state[i][j] = 0;
-            }
-        }
-    }
-
-    public Mlynek(Mlynek m) {
-        super();
         this.state = new byte[rows][columns];
+        maximazingturnnow = true; //biale zaczynaja
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                this.state[i][j] = m.state[i][j];
+                state[i][j] = empty;
             }
         }
     }
 
-    public String toString() { // co jest z tym
-        StringBuilder s = new StringBuilder();
+    //prosze sprawdz czy tak moze byc wsensie czy tu dwa razy nie kopiuje planszy?
+    public Mlynek(byte[][] state) {
+        super();
+        this.state = state;
+
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                s.append(state[i][j] == 0 ? "." : (state[i][j] == white ? "W" : "B"));
-                if (j < columns - 1) s.append(" "); // Separator pól
+                this.state[i][j] = state[i][j];
             }
-            s.append('\n');
         }
-        return s.toString();
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
 
+        //1
+        sb.append(state[0][6]).append("***************").append(state[0][5]).append("***************").append(state[0][4]).append("\n");
+        sb.append("|               |               |\n");
+
+        //2
+        sb.append("|     ").append(state[1][6]).append("*********").append(state[1][5]).append("*********").append(state[1][4]).append("     |\n");
+        sb.append("|     |         |         |     |\n");
+
+        //3
+        sb.append("|     |     ").append(state[2][6]).append("***").append(state[2][5]).append("***").append(state[2][4]).append("     |     |\n");
+        sb.append("|     |     |       |     |     |\n");
+
+        //4
+        sb.append(state[0][7]).append("*****").append(state[1][7]).append("*****").append(state[2][7]).append("       ")
+                .append(state[2][3]).append("*****").append(state[1][3]).append("*****").append(state[0][3]).append("\n");
+        sb.append("|     |     |       |     |     |\n");
+
+        //5
+        sb.append("|     |     ").append(state[2][0]).append("***").append(state[2][1]).append("***").append(state[2][2]).append("     |     |\n");
+        sb.append("|     |         |         |     |\n");
+
+        //6
+        sb.append("|     ").append(state[1][0]).append("*********").append(state[1][1]).append("*********").append(state[1][2]).append("     |\n");
+        sb.append("|               |               |\n");
+
+        //7
+        sb.append(state[0][0]).append("***************").append(state[0][1]).append("***************").append(state[0][2]).append("\n");
+
+        return sb.toString();
+    }
+
+    //to tak sie to robilo?
+    @Override
     public int hashCode() {
-        return toString().hashCode();
+        return super.hashCode();
     }
 
-    public boolean isMlynek(int square, int index) {
-        //square - numer kwadratu i index to ideks w kwadracie
-        byte board = state[square][index];
-        if (board == 0) {
-            return false;
-        }
+    private boolean isMlynek(int row, int col) {
+        //dla danej pozycji sprawdzamy czy jest mlynkiem
+        //dwa rodzaje mlynka : poziomy i pionowy
+        //poziomy
+        //jezlei jest nieparzysty kolumna to sprawdzamy czy ma sasiadow (po lewej i prawej) i czy sa takie same kolory
+        //jezlei jest parzysta to sprawdzamy sasiadow (dwoch po prawej lub dwoch po lewej) - np dla 0,0 to 0,1 i 0,2 a dla 0,6 to 0,5 i 0,4
 
-        //parzyste
-        //prawo, prawo 2
-        //lewo, lewo 2
+        //pionowy
+        //jezlei jest nieparzysty wiersz to sprawdzamy czy ma dwoch sasiadow na gorze lub na dile i czy sa takie same kolory
+        //jezeli jest parzysty to sprawdzamy czy ma dwoch sasiadow na gorze lub na dole np. dla 0,0 to 0,7 i 0,6 a dla 0,2 o 0,3 i 0,4
 
-        if (index % 2 == 0) {
-            int next = (index + 1) % columns;
-            int next2 = (index + 2) % columns;
-            int prev = (index - 1 + columns) % columns;
-            int prev2 = (index - 2 + columns) % columns;
+        //jezeli ktorys z tych scenariuszy sie zgdza to zwracamy true
 
+        if (col % 2 == 0) {
+            if (col == 0) {
+                if (state[row][col] == state[row][col + 1] && state[row][col] == state[row][col + 2]) {
+                    return true;
+                }
 
-            if ((state[square][next] == board && state[square][next2] == board) || (state[square][prev] == board && state[square][prev2] == board)) {
-                return true;
+                if (state[row][col] == state[row][columns + 7] && state[row][col] == state[row][columns + 6]) {
+                    return true;
+                }
+            } else if (col == 2) {
+                if (state[row][col] == state[row][col + 1] && state[row][col] == state[row][col + 2]) {
+                    return true;
+                }
+
+                if (state[row][col] == state[row][col - 1] && state[row][col] == state[row][col - 2]) {
+                    return true;
+                }
+            } else if (col == 4) {
+                if (state[row][col] == state[row][col - 1] && state[row][col] == state[row][col - 2]) {
+                    return true;
+                }
+
+                if (state[row][col] == state[row][col + 1] && state[row][col] == state[row][col + 2]) {
+                    return true;
+                }
+            } else if (col == 6) {
+                if (state[row][col] == state[row][col - 1] && state[row][col] == state[row][col - 2]) {
+                    return true;
+                }
+
+                if (state[row][col] == state[row][col + 1] && state[row][col] == state[row][col - 6]) {
+                    return true;
+                }
+            }
+        } else {
+            if (row == 0) {
+                if (state[row][col] == state[row + 1][col] && state[row][col] == state[row + 2][col]) {
+                    return true;
+                }
+            } else if (row == 1) {
+                if (state[row][col] == state[row - 1][col] && state[row][col] == state[row + 1][col]) {
+                    return true;
+                }
+            } else if (row == 2) {
+                if (state[row][col] == state[row - 1][col] && state[row][col] == state[row - 2][col]) {
+                    return true;
+                }
+            } else if (col == 1 || col == 3 || col == 5 || col == 7) {
+                if (state[row][col] == state[row][col - 1] && state[row][col] == state[row][col + 1]) {
+                    return true;
+                }
             }
         }
 
-        //nieparzyste - sasiedzi
-        //prawo i lewo
-        //gora i dol
-
-        //poprzedmi kwadrat
-        //nastepny kwadrat
-
-//CZEMU TAK ZAPISANE
-        if (index % 2 == 1) {
-            int prevsquare = (square - 1 + rows) % rows;
-            int nextsquare = (square + 1) % rows;
-            int next = (index + 1) % columns;
-            int prev = (index - 1 + columns) % columns;
-
-
-            //miedzy kwadratami
-            if ((state[prevsquare][index] == board && state[nextsquare][index] == board) || (state[square][next] == board && state[square][prev] == board)) {
-                return true;
-            }
-        }
         return false;
     }
 
+    List<int[]> MlynekSolution(boolean maximazingturnnow) {
+        //wywolywane jesli ktos zrobil mlynka
+        //przeciwnik ktory utworzyl mlynek (czyli maximazingturnnow) ma mozliwosc usuniecia pionka przeciwnika
+        //moze usunac kazdy pionek ktory NIE jest w mlynku
+        //jezeli wzytskie znajduja sie w plynku to moze usunac dowolny
+        //zwracamy liste mozliwych do usuniecia
 
-    public List<Mlynek> MlynekSolution(boolean maximizingTurnNow) {
-        List<Mlynek> children = new ArrayList<>();
+        List<int[]> candelete = new ArrayList<>();
         byte opponent;
-        boolean pieceRemoved = false;
 
-        if(maximizingTurnNow) {
-            player = white;
+        if (maximazingturnnow) {
             opponent = black;
-        }else{
-            player = black;
+        } else {
             opponent = white;
         }
 
 
-        for (int row = 0; row < rows; row++) {
-            for (int col = 0; col < columns; col++) {
-                if (state[row][col] == opponent && !isMlynek(row, col)) {
-                    Mlynek child = new Mlynek(this);
-                    child.state[row][col] = 0;  //czemu usuwamy pionek przeciwnika???
-                    pieceRemoved = true;
-
-                    // Aktualizacja liczby pionków przeciwnika
-                    if (maximizingTurnNow) {
-                        child.blackcount--;
-                    } else {
-                        child.whitecount--;
-                    }
-
-                    child.maximizingTurnNow = !maximizingTurnNow;
-                    children.add(child);
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                if (state[i][j] != empty && state[i][j] == opponent && !isMlynek(i, j)) {
+                    //DODAJEMY DO LISTY CANDELETE
+                    candelete.add(new int[]{i, j});
                 }
             }
         }
 
-
-        if (!pieceRemoved) {
-            for (int row = 0; row < rows; row++) {
-                for (int col = 0; col < columns; col++) {
-                    if (state[row][col] == opponent) {
-                        Mlynek child = new Mlynek(this); // Tworzenie kopii stanu
-                        child.state[row][col] = 0; // Usunięcie pionka
-
-                        // Aktualizacja liczby pionków przeciwnika
-                        if (maximizingTurnNow) {
-                            child.blackcount--;
-                        } else {
-                            child.whitecount--;
-                        }
-
-                        child.maximizingTurnNow = !maximizingTurnNow; // Zmiana tury
-                        children.add(child); // Dodanie nowego stanu do listy dzieci
+        if (candelete.isEmpty()) {
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < columns; j++) {
+                    if (state[i][j] != empty && state[i][j] == opponent) {
+                        //DODAJEMY DO LISTY CANDELETE
+                        candelete.add(new int[]{i, j});
                     }
                 }
             }
         }
 
-        return children; // Zwrócenie wygenerowanych dzieci
+        return candelete;
     }
 
+    List<GameState> MlynekPerform(boolean maximazingturnnow) {
+        //mamy liste z MlynekSolution
+        //kto wygral ten ma mozliwosc usuniecia pionka przeciwnika TYLKO Z LISTY CANDELETE
+        //zwracamy liste mozliwych stanow gry po usunieciu pionka przeciwnika? dobzre czaje baze?
 
-    public void placingpieces(int row, int col) { //zmien nazwe potem
-        Scanner scanner = new Scanner(System.in);
-        if(maximizingTurnNow){
-            player = white;
-        }else{
-            player = black;
-        }
-
-        if (state[row][col] != 0) {
-            System.out.println("Invalid move. Try again:");
-            System.out.println("Which position do you choose? (row column): ");
-            row = scanner.nextInt();
-            col = scanner.nextInt();
-
-        }
-
-        state[row][col] = player;
-
-        if (maximizingTurnNow) {
-            countwhite_to_place--;
-            whitecount++;
-        } else {
-            countblack_to_place--;
-            blackcount++;
-        }
-
-    }
-
-    public void movingpieces (int row, int col, int newrow, int newcol){
-        Scanner scanner = new Scanner(System.in);
-
-        if (maximizingTurnNow) {
-            player = white;
-        } else {
-            player = black;
-        }
+        List<GameState> deleted = new ArrayList<>();
+        List<int[]> candelete = MlynekSolution(maximazingturnnow);
 
 
-        while(state[newrow][newcol] != 0){
-            System.out.println("Invalid move - position taken:");
-            System.out.println("Which position do you choose? (row column): ");
-            newrow = scanner.nextInt();
-            newcol = scanner.nextInt();
-
-            if (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0 || Math.abs(col - newcol) != 1 || Math.abs(row - newrow) != 1) {
-                System.out.println("Invalid move - cannot move there:");
-            }
-        }
-
-        state[row][col] = 0;
-        state[newrow][newcol] = player;
-
-        System.out.println("Moved piece to: [" + newrow + ", " + newcol + "]");
-
-        }
-    }
-
-
-    public List<GameState> firstphase() {
-
-        //pierwsza faza zaczyna sie kiedy count ==18 a konczy kiedy count jest 0
-
-        Scanner scanner = new Scanner(System.in);
-        boolean canjump = false;
-
-        if(whitecount == 3 || blackcount == 3){
-            canjump = true;
-        }
-
-        while (count != 0) {
-
-            if (maximizingTurnNow) {
-                player = white;
-            } else {
-                player = black;
-            }
-
-            System.out.println("Current state:");
-            System.out.println(this);
-
-
-            System.out.println("Which position do you choose? (row column): ");
-            int row = scanner.nextInt();
-            int col = scanner.nextInt();
-
-            if (row < 0 || row > rows || col < 0 || col > columns || state[row][col] != 0) {
-                System.out.println("Wrong position");
-                continue;
-            }
-
-            state[row][col] = player;
-            if (maximizingTurnNow) {
-                count--;
-            } else {
-                count--;
-            }
-
-            if (isMlynek(row, col)) {
-                System.out.println("Mlynek found");
-                MlynekSolution(maximizingTurnNow);
-            }
-
-            isSolution();
-            maximizingTurnNow = !maximizingTurnNow;
-
-        }
-        return Arrays.asList(this);
-    }
-
-    public List<GameState> secondandthirdphase() {
-        //mamy plansze wypelniona po fazie pierwszej
-        //na zmine gracze przesuwaja pionki o jedno pole
-        // po kazdym ruchu sprawdzamy czy powstal mlynek
-        boolean canjump = false;
-        int playerpiecescount;
-        Scanner scanner = new Scanner(System.in);
-
-        while(!isSolution()) {
-            if (maximizingTurnNow) {
-                player = white;
-                playerpiecescount = whitecount;
-            } else {
-                player = black;
-                playerpiecescount = blackcount;
-            }
-
-
-            if (playerpiecescount <= 3) {
-                canjump = true;
-            }
-
-            System.out.println("Current state:");
-            System.out.println(this);
-
-            System.out.println("Position to move:");
-            int row = scanner.nextInt();
-            int col = scanner.nextInt();
-
-            while (row < 0 || row >= rows || col < 0 || col >= columns || state[row][col] != player) {
-                System.out.println("Wrong choice, try again");
-                row = scanner.nextInt();
-                col = scanner.nextInt();
-            }
-
-            System.out.println("Position to change: ");
-            int newrow = scanner.nextInt();
-            int newcol = scanner.nextInt();
-
-            if (canjump) {
-                while (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0) {
-                    System.out.println("Invalid move. Try again:");
-                    newrow = scanner.nextInt();
-                    newcol = scanner.nextInt();
-                }
-            } else {
-                while (newrow < 0 || newrow >= rows || newcol < 0 || newcol >= columns || state[newrow][newcol] != 0 ||
-                        Math.abs(col - newcol) != 1 || Math.abs(row - newrow) != 1) {
-                    System.out.println("Invalid move. Try again:");
-                    newrow = scanner.nextInt();
-                    newcol = scanner.nextInt();
+        for (int[] i : candelete) {
+            byte[][] newstate = new byte[rows][columns];
+            for (int j = 0; j < rows; j++) {
+                for (int k = 0; k < columns; k++) {
+                    newstate[j][k] = state[j][k];
                 }
             }
+            newstate[i[0]][i[1]] = empty;
+            deleted.add(new Mlynek(newstate));
 
-
-            state[row][col] = 0;
-            state[newrow][newcol] = player;
-
-            System.out.println("Moved piece to: [" + newrow + ", " + newcol + "]");
-
-            if (isMlynek(newrow, newcol)) {
-                System.out.println("Mlynek created");
-                MlynekSolution(maximizingTurnNow);
+            if (maximazingturnnow) {
+                black_count--;
+            } else {
+                white_count--;
             }
-
-            isSolution();
-            maximizingTurnNow = !maximizingTurnNow;
-
-            System.out.println("Current state:");
-            System.out.println(this);
         }
 
-        return Arrays.asList(this);
+        return deleted;
     }
 
+    List<GameState> firstphase() {
+        //pierwsza faza gry
+        //kazdy gracz zaczyna z 9 pionkami
+        //faza konczy sie gdy kazdy z graczy ma 0 pionkow do ustawienia
+        //zwracamy liste mozliwych stanow gry po ustawieniu pionka
+        //sprawdzamy czy nie powstal mlynek wywolujac ismlynek
 
-
-    public boolean isSolution() {
-        // jezeli jeden z gracz ma zero pionkow to koniec the end
-        // jezeli brak ruchow ma jeden z graczy to tez kaputo
-        int playerpiecescount;
-        boolean canjump = false;
-        List<int[]> stillcanmove = new ArrayList<>();
-
-
-        if (whitecount == 0 || blackcount == 0) {
-            System.out.println("The end, game over");
-            return true;
-        }
-
-        //przejsc przez wszytskie pionki gracza
-        //sprawdzic czy mozna sie ruszyc w prawo lewo gora dol (jezeli wiecej niz 3)
-        //jezeli nie to przegral
-
-        if (maximizingTurnNow) {
-            player = white;
-            playerpiecescount = whitecount;
-        } else {
-            player = black;
-            playerpiecescount = blackcount;
-        }
-
-        if (playerpiecescount <= 3) {
-            canjump = true;
-        }
-
-        //wsumie moge zrobic tak ze jak nie mozna wykonac secondandthirdphase to koniec
-        //ale to chyba
-
+        List<GameState> firstphase = new ArrayList<>();
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
-                if (state[i][j] == player && !canjump) {
-                    if (j + 1 < columns && state[i][j + 1] != 0 && j - 1 >= 0 && state[i][j - 1] != 0 && i + 1 < rows && state[i + 1][j] != 0 && i - 1 >= 0 && state[i - 1][j] != 0) {
-                        stillcanmove.add(new int[]{i, j});
+                if (state[i][j] == empty) {
+                    byte[][] newstate = new byte[rows][columns];
+                    for (int k = 0; k < rows; k++) {
+                        for (int l = 0; l < columns; l++) {
+                            newstate[k][l] = state[k][l];
+                        }
+                    }
+                    if (maximazingturnnow) {
+                        newstate[i][j] = white;
+                        white_toplace--;
+                        white_count++;
+                    } else {
+                        newstate[i][j] = black;
+                        black_toplace--;
+                        white_count++;
+                    }
+
+                    if (isMlynek(i, j)) {
+                        firstphase.addAll(MlynekPerform(maximazingturnnow));
+                    } else {
+                        firstphase.add(new Mlynek(newstate));
                     }
                 }
             }
         }
+        return firstphase;
 
-        if(stillcanmove.isEmpty() && count==0){
-            System.out.println("The end, game over, kaput");
-            return true;
+    }
+//
+//    List<GameState> firstphase() {
+//        // Lista możliwych stanów gry
+//        List<GameState> firstphase = new ArrayList<>();
+//
+//        for (int i = 0; i < rows; i++) {
+//            for (int j = 0; j < columns; j++) {
+//                if (state[i][j] == empty) {  // Sprawdzamy puste pole
+//                    // Tworzymy nowy stan gry
+//                    byte[][] newstate = new byte[rows][columns];
+//                    for (int k = 0; k < rows; k++) {
+//                        newstate[k] = Arrays.copyOf(state[k], columns);
+//                    }
+//
+//                    // Ustawiamy nowy pionek
+//                    newstate[i][j] = maximazingturnnow ? white : black;
+//
+//
+//// Aktualizacja liczników
+//                    if (maximazingturnnow) {
+//                        white_toplace--; // Gracz W umieścił pionek
+//                        white_count++;   // Zwiększamy licznik pionków na planszy dla W
+//                    } else {
+//                        black_toplace--; // Gracz B umieścił pionek
+//                        black_count++;   // Zwiększamy licznik pionków na planszy dla B
+//                    }
+//
+//                    // Sprawdzamy, czy powstał młynek
+//                    if (isMlynek(i, j)) {
+//                        firstphase.addAll(MlynekPerform(maximazingturnnow));
+//                    } else {
+//                        firstphase.add(new Mlynek(newstate));
+//                    }
+//                }
+//            }
+//        }
+//
+//        return firstphase;
+//    }
+
+    List<GameState> secondthirdphase() {
+        //druga faza
+        //gracze mogą przesuwać swoje pionki na sąsiednie wolne miejsca
+        //parzyste maja dwie mozliwosci
+        //nieparzyste maja trzy mozliwosci
+
+        //trzecia faza - zaczyna sie gdy ktorys z graczy ma 3 pionki
+        //gracz ktory ma 3 lub mniej pionkow moze skakac na dowolne wolne pole
+
+        //zwracamy wszytskie mozliwe stany gry dla fazy dwa i trzy
+
+        List<GameState> secondthirdphase = new ArrayList<>();
+        byte player;
+
+        if (maximazingturnnow) {
+            player = white;
+        } else {
+            player = black;
         }
 
-        return false;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < columns; j++) {
+                if (state[i][j] != empty && state[i][j] == player) {
+                    if (j % 2 == 0) {
+                        if (j == 0) {
+                            if (state[i][j + 1] == empty) {
+                                byte[][] newstate = new byte[rows][columns];
+                                for (int k = 0; k < rows; k++) {
+                                    for (int l = 0; l < columns; l++) {
+                                        newstate[k][l] = state[k][l];
+                                    }
+                                }
+                                newstate[i][j + 1] = newstate[i][j];
+                                newstate[i][j] = empty;
+                                secondthirdphase.add(new Mlynek(newstate));
+                            }
+
+                            if (state[i][j + 7] == empty) {
+                                byte[][] newstate = new byte[rows][columns];
+                                for (int k = 0; k < rows; k++) {
+                                    for (int l = 0; l < columns; l++) {
+                                        newstate[k][l] = state[k][l];
+                                    }
+                                }
+                                newstate[i][j + 2] = newstate[i][j];
+                                newstate[i][j] = empty;
+                                secondthirdphase.add(new Mlynek(newstate));
+                            }
+
+                        } else if (j == 2 || j == 4 || j == 6) {
+                            if (state[i][j + 1] == empty) {
+                                byte[][] newstate = new byte[rows][columns];
+                                for (int k = 0; k < rows; k++) {
+                                    for (int l = 0; l < columns; l++) {
+                                        newstate[k][l] = state[k][l];
+                                    }
+                                }
+                                newstate[i][j + 1] = newstate[i][j];
+                                newstate[i][j] = empty;
+                                secondthirdphase.add(new Mlynek(newstate));
+                            }
+
+                            if (state[i][j - 1] == empty) {
+                                byte[][] newstate = new byte[rows][columns];
+                                for (int k = 0; k < rows; k++) {
+                                    for (int l = 0; l < columns; l++) {
+                                        newstate[k][l] = state[k][l];
+                                    }
+                                }
+                                newstate[i][j - 1] = newstate[i][j];
+                                newstate[i][j] = empty;
+                                secondthirdphase.add(new Mlynek(newstate));
+                            }
+                        } else {
+                            if (j == 1 || j == 3 || j == 5) {
+                                if (state[i][j - 1] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i][j - 1] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+
+                                if (state[i][j + 1] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i][j + 1] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            } else if (j == 7) {
+                                if (state[i][j - 1] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i][j - 1] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+
+                                if (state[i][0] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i][0] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+
+                            if (i == 0) {
+                                if (state[i + 1][j] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i + 1][j] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+
+                            if (i == 1) {
+                                if (state[i + 1][j] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i + 1][j] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+
+                                if (state[i - 1][j] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i - 1][j] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+
+                            if (i == 2) {
+                                if (state[i - 1][j] == empty) {
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for (int k = 0; k < rows; k++) {
+                                        for (int l = 0; l < columns; l++) {
+                                            newstate[k][l] = state[k][l];
+                                        }
+                                    }
+                                    newstate[i - 1][j] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+                        }
+
+                    }
+
+                }
+            }
+        }
+
+        //faza trzecia
+
+        if(white_count <= 3 && player == white){
+            for(int i = 0; i < rows; i++){
+                for(int j = 0; j < columns; j++){
+                    if(state[i][j] == player){
+                        for(int k = 0; k < rows; k++){
+                            for(int l = 0; l < columns; l++){
+                                if(state[k][l] == empty){
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for(int m = 0; m < rows; m++){
+                                        for(int n = 0; n < columns; n++){
+                                            newstate[m][n] = state[m][n];
+                                        }
+                                    }
+                                    newstate[k][l] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (black_count <= 3 && player == black){
+            for(int i = 0; i < rows; i++){
+                for(int j = 0; j < columns; j++){
+                    if(state[i][j] == player){
+                        for(int k = 0; k < rows; k++){
+                            for(int l = 0; l < columns; l++){
+                                if(state[k][l] == empty){
+                                    byte[][] newstate = new byte[rows][columns];
+                                    for(int m = 0; m < rows; m++){
+                                        for(int n = 0; n < columns; n++){
+                                            newstate[m][n] = state[m][n];
+                                        }
+                                    }
+                                    newstate[k][l] = newstate[i][j];
+                                    newstate[i][j] = empty;
+                                    secondthirdphase.add(new Mlynek(newstate));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+        return secondthirdphase;
     }
 
-    // @Override
+    @Override
     public List<GameState> generateChildren() {
-
-        if (count > 0) {
+        if (white_toplace > 0 || black_toplace > 0) {
             return firstphase();
         } else {
-            return secondandthirdphase();
+            return secondthirdphase();
         }
     }
 }
