@@ -7,17 +7,24 @@ public class Main {
     public static void main(String[] args) {
         GameState gra = new Mlynek();
 
-//
-//        ((Mlynek) gra).state[0][0] = 1;
-        // ((Mlynek) gra).state[0][1] = 1;
+      //  testMlynek();
+     //   testJumpingPhase();
 
-//        ((Mlynek) gra).state[0][2] = 1;
-//        ((Mlynek) gra).state[2][1] = 1;
+       //  ((Mlynek) gra).state[0][1] = 1;
 //
-//        System.out.println(((Mlynek) gra).isMlynek(0,1));
+//        ((Mlynek) gra).state[0][1]=2;
+//        ((Mlynek) gra).state[0][0]=1;
+//        ((Mlynek) gra).state[1][0]=2;
+//        ((Mlynek) gra).state[2][7]=1;
+//        ((Mlynek) gra).state[2][3]=1;
+//        ((Mlynek) gra).state[0][3]=1;
+//        ((Mlynek) gra).state[2][5]=2;
+//        ((Mlynek) gra).state[1][6]=1;
+//        ((Mlynek) gra).state[1][5]=1;
+//        ((Mlynek) gra).state[1][4]=1;
+//        ((Mlynek) gra).state[0][5]=2;
 
         System.out.println(gra.toString());
-
         int depth = 6;
         expand(gra, depth);
     }
@@ -38,6 +45,59 @@ public class Main {
             expand(t, v, d + 1);
         }
     }
+
+    public static void testJumpingPhase() {
+        Mlynek game = new Mlynek();
+
+        // Set up a scenario where a player has 3 pieces left
+        game.state[2][6] = 1; // White piece
+        game.state[1][0] = 1; // White piece
+        game.state[2][0] = 1; // White piece
+
+        game.state[0][1] = 2; // Black piece
+        game.state[1][1] = 2; // Black piece
+        game.state[2][2] = 2; // Black piece
+
+        game.white_count = 3;
+        game.white_toplace = 0;
+
+        // Print the initial state
+        System.out.println("Initial State:");
+        System.out.println(game.toString());
+
+        // Execute jumping phase: jump from one piece to an empty spot
+        List<int[]> jumps = game.jumpingstage();
+        for (int[] jump : jumps) {
+            System.out.println("Jumping to: " + Arrays.toString(jump));
+            Mlynek newGameState = new Mlynek(game);
+            newGameState.state[jump[0]][jump[1]] = 1; // White piece jumps
+            newGameState.state[0][0] = 0; // Remove the original piece
+            System.out.println("New State after Jump:");
+            System.out.println(newGameState.toString());
+        }
+    }
+    public static void testMlynek() {
+        Mlynek game = new Mlynek();
+
+        // Horizontal mill
+        game.state[0][0] = 1;
+        game.state[0][1] = 1;
+        game.state[0][2] = 1;
+        System.out.println("Horizontal Mill at (0, 1): " + game.isMlynek(0, 1)); // Expected: true
+
+        // Vertical mill
+        game.state[2][5] = 1;
+        game.state[1][5] = 1;
+        game.state[0][5] = 1;
+        System.out.println("Vertical Mill at (0, 5): " + game.isMlynek(1, 1)); // Expected: true
+
+        // No mill
+        game.state[0][1] = 2; // Change piece to make no mill
+        System.out.println("No mill at (1, 1): " + game.isMlynek(1, 1)); // Expected: false
+        System.out.println("No mill at (0, 0): " + game.isMlynek(0, 0)); // Expected: false
+        System.out.println("No mill at (1, 7): " + game.isMlynek(1, 7)); // Expected: false
+    }
+
 }
 
 class Mlynek extends GameStateImpl {
@@ -141,7 +201,7 @@ class Mlynek extends GameStateImpl {
             return false;
         }
 
-        if (col % 2 == 0) {
+        if (col % 2 == 0 && state[row][col] != empty) {
             if (col == 0) {
                 if (state[row][col] == state[row][1] && state[row][col] == state[row][2]) {
                     return true;
@@ -175,7 +235,7 @@ class Mlynek extends GameStateImpl {
                     return true;
                 }
             }
-        } else if(col % 2 == 1) {
+        } else if(col % 2 == 1 && state[row][col] != empty) {
 
             if (row == 0) {
                 if (col == 1 || col == 3 || col == 5) {
@@ -262,7 +322,6 @@ class Mlynek extends GameStateImpl {
                 }
             }
         }
-
         return candelete;
     }
 
@@ -287,7 +346,7 @@ class Mlynek extends GameStateImpl {
 
             deleted.add(newGameState);
         }
-
+        maximazingturnnow = !maximazingturnnow;
         return deleted;
     }
 
@@ -407,7 +466,7 @@ class Mlynek extends GameStateImpl {
 //    }
 
 
-    public List<int[]> get_neighbors(int row, int col) {
+    public List<int[]> getneighbors(int row, int col) {
         List<int[]> neighbors = new ArrayList<>();
 
         if (col % 2 == 0) {
@@ -462,7 +521,7 @@ class Mlynek extends GameStateImpl {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < columns; j++) {
                 if (state[i][j] == player) {
-                    List<int[]> neighbors = get_neighbors(i, j);
+                    List<int[]> neighbors = getneighbors(i, j);
                     for (int[] neighbor : neighbors) {
                         if (state[neighbor[0]][neighbor[1]] == empty) {
                             possiblemoves.add(neighbor);
@@ -502,9 +561,12 @@ class Mlynek extends GameStateImpl {
             player = black;
         }
 
-
+//System.out.println("Maximazing turn now: " + maximazingturnnow);
 //faza pierwsza
         if(white_toplace > 0 || black_toplace > 0){
+
+        //    System.out.println("Placing phase");
+
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {
                     if (state[i][j] == empty) {
@@ -523,6 +585,7 @@ class Mlynek extends GameStateImpl {
                         if (newGameState.isMlynek(i, j)) {
                             List<GameState> mill_children = newGameState.MlynekPerform(newGameState.maximazingturnnow);
                             children.addAll(mill_children);
+                           // newGameState.maximazingturnnow = !newGameState.maximazingturnnow;
                         } else {
                             newGameState.maximazingturnnow = !newGameState.maximazingturnnow;
                             children.add(newGameState);
@@ -534,6 +597,9 @@ class Mlynek extends GameStateImpl {
         //faza druga
         else if ((white_toplace == 0 && black_toplace == 0) &&
                 ((maximazingturnnow && white_count > 3) || (!maximazingturnnow && black_count > 3))) {
+
+            System.out.println("Moving phase");
+
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {
                     if (state[i][j] == player) {
@@ -555,24 +621,40 @@ class Mlynek extends GameStateImpl {
                     }
                 }
             }
+
         }
         //faza trzecia
-        else if ((maximazingturnnow && white_count <= 3 && white_toplace == 0  && black_toplace == 0) || (!maximazingturnnow && black_count <= 3 && black_toplace == 0 && white_toplace == 0)) {
+        else if ((maximazingturnnow && white_count <= 3 && white_toplace == 0 && black_toplace == 0) ||
+                (!maximazingturnnow && black_count <= 3 && black_toplace == 0 && white_toplace == 0)) {
+
+
+            System.out.println("Jumping phase");
+
             List<int[]> jumps = jumpingstage();  // Get all empty positions (jumping stage)
 
             for (int i = 0; i < rows; i++) {
                 for (int j = 0; j < columns; j++) {
-                    if (state[i][j] == player) {
+                    if (state[i][j] == player) {  // Look for player's pieces
                         for (int[] jump : jumps) {
-                            Mlynek newGameState = new Mlynek(this);
+                            Mlynek newGameState = new Mlynek(this);  // Create a new game state
 
+                            // Move the piece to the new position (jump)
                             newGameState.state[jump[0]][jump[1]] = newGameState.state[i][j];
+
+                            // Set the original position to empty (ensure the original position is cleared)
                             newGameState.state[i][j] = empty;
 
+                            // Print the new game state for debugging
+                            System.out.println("Jumping to: " + Arrays.toString(jump));
+                            System.out.println("New State after Jump:");
+                            System.out.println(newGameState.toString());
+
+                            // If a mill is formed after the move, perform the appropriate action
                             if (newGameState.isMlynek(jump[0], jump[1])) {
                                 List<GameState> mill_children = newGameState.MlynekPerform(newGameState.maximazingturnnow);
                                 children.addAll(mill_children);
                             } else {
+                                // Otherwise, just add the new game state to the children list
                                 newGameState.maximazingturnnow = !newGameState.maximazingturnnow;
                                 children.add(newGameState);
                             }
@@ -581,6 +663,7 @@ class Mlynek extends GameStateImpl {
                 }
             }
         }
+
 
         return children;
     }
